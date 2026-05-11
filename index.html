@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SawitVision — Identifikasi Pohon Sawit & Estimasi Panen</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{--gd:#0f3d2e;--gm:#1a5c42;--ga:#2d8a5e;--gl:#5ab586;--gp:#c6e8d8;--gold:#e8a835;--cream:#faf7f2;--cd:#f0ebe0;--td:#1a1a18;--tm:#3d4038;--mu:#7a7d72;--wh:#fff;--danger:#c0392b;--br:rgba(15,61,46,0.12)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Space Grotesk',sans-serif;background:var(--cream);color:var(--td);min-height:100vh}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:240px;background:var(--gd);display:flex;flex-direction:column;z-index:100}
+.logo{padding:28px 24px 20px;border-bottom:1px solid rgba(255,255,255,0.1)}
+.logo span{font-family:'Instrument Serif',serif;font-size:22px;color:#fff;display:block}
+.logo small{font-size:10px;color:var(--gp);letter-spacing:1.5px;text-transform:uppercase;margin-top:2px;display:block}
+.nav{flex:1;padding:16px 12px;display:flex;flex-direction:column;gap:4px}
+.nl{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--gp);opacity:.5;padding:12px 12px 6px;font-weight:600}
+.ni{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;color:rgba(255,255,255,0.65);font-size:14px;font-weight:500;transition:all .15s;border:none;background:none;width:100%;text-align:left;font-family:'Space Grotesk',sans-serif}
+.ni:hover{background:rgba(255,255,255,0.07);color:#fff}
+.ni.active{background:var(--ga);color:#fff}
+.ni i{width:18px;text-align:center;font-size:15px}
+.sf{padding:16px;border-top:1px solid rgba(255,255,255,0.1);font-size:11px;color:rgba(255,255,255,0.35);text-align:center}
+.main{margin-left:240px;min-height:100vh;display:flex;flex-direction:column}
+.topbar{background:#fff;border-bottom:1px solid var(--br);padding:0 32px;height:64px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.topbar h1{font-family:'Instrument Serif',serif;font-size:20px}
+.ta{display:flex;align-items:center;gap:12px}
+.badge{display:flex;align-items:center;gap:6px;background:#eafaf1;color:#1a7a47;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600}
+.dot{width:7px;height:7px;border-radius:50%;background:#27ae60;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:'Space Grotesk',sans-serif;transition:all .15s}
+.bp{background:var(--ga);color:#fff}.bp:hover{background:var(--gm)}
+.bo{background:transparent;border:1.5px solid var(--br);color:var(--tm)}.bo:hover{border-color:var(--ga);color:var(--ga)}
+.bd{background:var(--danger);color:#fff}.bd:hover{opacity:.88}
+.content{flex:1;padding:32px}
+.page{display:none}.page.active{display:block}
+/* CARDS */
+.mg{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
+.mc{background:#fff;border-radius:12px;border:1px solid var(--br);padding:20px;position:relative;overflow:hidden}
+.mc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--ga)}
+.mc.gold::before{background:var(--gold)}.mc.teal::before{background:#16a085}.mc.red::before{background:var(--danger)}
+.ml{font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--mu);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.mv{font-family:'Instrument Serif',serif;font-size:36px;color:var(--td);line-height:1}
+.mu2{font-size:14px;color:var(--mu);font-family:'Space Grotesk',sans-serif;margin-left:4px}
+.md{margin-top:8px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:4px}
+.md.up{color:#27ae60}.md.down{color:var(--danger)}
+.cr{display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:28px}
+.card{background:#fff;border-radius:12px;border:1px solid var(--br);padding:24px}
+.ch{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.ct{font-family:'Instrument Serif',serif;font-size:18px;color:var(--td)}
+.cs{font-size:12px;color:var(--mu);margin-top:2px}
+/* UPLOAD */
+.uz{border:2px dashed var(--gp);border-radius:16px;padding:50px 40px;text-align:center;cursor:pointer;transition:all .2s;background:rgba(90,181,134,0.03);position:relative}
+.uz:hover,.uz.drag{border-color:var(--ga);background:rgba(45,138,94,0.06)}
+.uz input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.ui{width:72px;height:72px;background:var(--gp);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:28px;color:var(--gm)}
+/* PROGRESS */
+.pb{height:8px;background:var(--cd);border-radius:4px;overflow:hidden;margin-top:8px}
+.pf{height:100%;border-radius:4px;background:var(--ga);transition:width 1s ease}
+/* STATUS PILLS */
+.sp{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.ss{background:#eafaf1;color:#1a7a47}.sw{background:#fef9e7;color:#9a7d0a}.sk{background:#fdedec;color:#c0392b}
+/* TABLE */
+.dt{width:100%;border-collapse:collapse;font-size:13px}
+.dt th{text-align:left;font-size:11px;letter-spacing:.7px;text-transform:uppercase;color:var(--mu);font-weight:600;padding:10px 12px;border-bottom:1px solid var(--br);background:var(--cream)}
+.dt td{padding:11px 12px;border-bottom:1px solid var(--br);color:var(--tm);vertical-align:middle}
+.dt tr:last-child td{border-bottom:none}
+.dt tr:hover td{background:rgba(90,181,134,0.04)}
+/* LOADING */
+.lo{display:none;position:fixed;inset:0;background:rgba(15,61,46,0.75);z-index:200;align-items:center;justify-content:center;flex-direction:column;gap:16px}
+.lo.show{display:flex}
+.ls{width:64px;height:64px;border:4px solid rgba(255,255,255,0.2);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.lt{color:#fff;font-size:15px;font-weight:500;text-align:center}
+/* NOTIF */
+.notif{position:fixed;bottom:24px;right:24px;background:var(--gd);color:#fff;padding:14px 20px;border-radius:10px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:10px;z-index:500;transform:translateY(80px);opacity:0;transition:all .3s;max-width:340px;border-left:4px solid var(--gold)}
+.notif.show{transform:translateY(0);opacity:1}
+/* AI INSIGHT */
+.ai{background:linear-gradient(135deg,var(--gd) 0%,var(--gm) 100%);color:#fff;border-radius:12px;padding:20px;margin-top:20px}
+.aih{display:flex;align-items:center;gap:10px;margin-bottom:12px;font-size:12px;font-weight:600;color:var(--gp);letter-spacing:.5px;text-transform:uppercase}
+.ait{font-size:14px;line-height:1.7;color:rgba(255,255,255,.88)}
+/* ESTIMATION */
+.er{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--br);font-size:14px}
+.er:last-child{border-bottom:none}
+.er .lbl{color:var(--mu)}.er .val{font-weight:600;color:var(--td)}
+.er .hi{color:var(--ga);font-size:18px;font-family:'Instrument Serif',serif}
+/* ANALISIS RESULT */
+.ar{display:none;margin-top:24px}.ar.show{display:block}
+/* MAP */
+#mapCanvas{position:absolute;inset:0;width:100%;height:100%}
+.mapwrap{position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--br);height:450px;background:#1a3a2a}
+/* SETTINGS */
+.sr{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--br);font-size:14px}
+.sr:last-child{border-bottom:none}
+.sr .inf{color:var(--mu);font-size:12px;margin-top:3px}
+.toggle{width:44px;height:24px;background:var(--ga);border-radius:12px;position:relative;cursor:pointer;flex-shrink:0}
+.toggle::after{content:'';position:absolute;width:18px;height:18px;background:#fff;border-radius:50%;top:3px;left:23px;transition:left .2s}
+.toggle.off{background:var(--cd)}.toggle.off::after{left:3px}
+select,input[type=number],input[type=text]{border:1.5px solid var(--br);border-radius:8px;padding:8px 12px;font-family:'Space Grotesk',sans-serif;font-size:13px;color:var(--td);background:#fff;outline:none;transition:border-color .15s}
+select:focus,input:focus{border-color:var(--ga)}
+/* IMAGE PREVIEW */
+#imgPreview{width:100%;max-height:340px;object-fit:cover;display:block;border-radius:8px}
+.imgwrap{position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--br)}
+#detCanvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+/* MAP POPUP */
+.map-popup{position:absolute;background:#fff;border-radius:10px;padding:14px 16px;box-shadow:0 8px 32px rgba(0,0,0,.25);font-size:13px;z-index:10;min-width:180px;border-left:4px solid var(--ga)}
+.map-popup h4{font-size:14px;font-weight:700;color:var(--gd);margin-bottom:8px}
+.map-popup .close-btn{position:absolute;top:8px;right:10px;cursor:pointer;color:var(--mu);font-size:16px}
+/* TREE LIST */
+.tlist{max-height:220px;overflow-y:auto;border:1px solid var(--br);border-radius:8px}
+.titem{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--br);font-size:13px}
+.titem:last-child{border-bottom:none}
+.titem:hover{background:rgba(45,138,94,0.05)}
+.tdot{width:10px;height:10px;border-radius:50%;margin-right:8px;flex-shrink:0}
+/* SECTION TITLE */
+.stitle{font-family:'Instrument Serif',serif;font-size:18px;color:var(--td);margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--br)}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.page.active .mc{animation:fadeUp .4s ease both}
+.page.active .mc:nth-child(1){animation-delay:.05s}
+.page.active .mc:nth-child(2){animation-delay:.1s}
+.page.active .mc:nth-child(3){animation-delay:.15s}
+.page.active .mc:nth-child(4){animation-delay:.2s}
+</style>
+</head>
+<body>
+
+<div class="lo" id="lo"><div class="ls"></div><div class="lt">Menganalisis Citra</div><div style="color:rgba(255,255,255,.5);font-size:12px;margin-top:4px" id="lstep">Memuat model AI...</div></div>
+<div class="notif" id="notif"><i class="fas fa-check-circle" style="color:var(--gold)"></i><span id="ntxt">OK</span></div>
+
+<aside class="sidebar">
+  <div class="logo"><span>🌿 SawitVision</span><small>Geodesi · Teknik</small></div>
+  <nav class="nav">
+    <div class="nl">Utama</div>
+    <button class="ni active" onclick="gp('dashboard',this)"><i class="fas fa-chart-line"></i> Dashboard</button>
+    <button class="ni" onclick="gp('analisis',this)"><i class="fas fa-satellite-dish"></i> Analisis Citra</button>
+    <button class="ni" onclick="gp('estimasi',this)"><i class="fas fa-seedling"></i> Estimasi Panen</button>
+    <button class="ni" onclick="gp('peta',this)"><i class="fas fa-map-marked-alt"></i> Peta Lahan</button>
+    <div class="nl" style="margin-top:8px">Laporan</div>
+    <button class="ni" onclick="gp('riwayat',this)"><i class="fas fa-history"></i> Riwayat Analisis</button>
+    <button class="ni" onclick="gp('pengaturan',this)"><i class="fas fa-cog"></i> Pengaturan</button>
+  </nav>
+  <div class="sf">SawitVision v2.1 · Kelompok H</div>
+</aside>
+
+<div class="main">
+  <header class="topbar">
+    <h1 id="ptitle">Dashboard Overview</h1>
+    <div class="ta">
+      <div class="badge"><div class="dot"></div> Model AI Aktif</div>
+      <button class="btn bo" onclick="exportDashPDF()"><i class="fas fa-download"></i> Export PDF</button>
+      <button class="btn bp" onclick="gp('analisis',document.querySelectorAll('.ni')[1])"><i class="fas fa-plus"></i> Analisis Baru</button>
+    </div>
+  </header>
+
+  <div class="content">
+
+  <!-- ===== DASHBOARD ===== -->
+  <div class="page active" id="page-dashboard">
+    <div class="mg">
+      <div class="mc"><div class="ml"><i class="fas fa-tree" style="color:var(--ga)"></i> Total Pohon</div><div class="mv">4.821<span class="mu2">pohon</span></div><div class="md up"><i class="fas fa-arrow-up"></i> +2.4% dari bulan lalu</div></div>
+      <div class="mc gold"><div class="ml"><i class="fas fa-leaf" style="color:var(--gold)"></i> Estimasi Panen</div><div class="mv">286<span class="mu2">ton TBS</span></div><div class="md up"><i class="fas fa-arrow-up"></i> +18% dari kuartal lalu</div></div>
+      <div class="mc teal"><div class="ml"><i class="fas fa-heartbeat" style="color:#16a085"></i> Kesehatan Lahan</div><div class="mv">87<span class="mu2">%</span></div><div class="pb"><div class="pf" style="width:87%;background:#16a085"></div></div></div>
+      <div class="mc red"><div class="ml"><i class="fas fa-exclamation-triangle" style="color:var(--danger)"></i> Perlu Perhatian</div><div class="mv">143<span class="mu2">pohon</span></div><div class="md down"><i class="fas fa-arrow-down"></i> Penurunan terdeteksi</div></div>
+    </div>
+    <div class="cr">
+      <div class="card">
+        <div class="ch"><div><div class="ct">Estimasi Produksi Bulanan (ton TBS)</div><div class="cs">12 bulan terakhir</div></div></div>
+        <div style="position:relative;height:260px"><canvas id="prodChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="ch"><div><div class="ct">Status Kesehatan</div><div class="cs">Distribusi kondisi pohon</div></div></div>
+        <div style="position:relative;height:180px"><canvas id="healthChart"></canvas></div>
+        <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px;font-size:13px">
+          <div style="display:flex;justify-content:space-between"><span style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:2px;background:#2d8a5e;display:inline-block"></span>Sehat</span><strong>4.203 (87%)</strong></div>
+          <div style="display:flex;justify-content:space-between"><span style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:2px;background:#e8a835;display:inline-block"></span>Perhatian</span><strong>475 (10%)</strong></div>
+          <div style="display:flex;justify-content:space-between"><span style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:2px;background:#c0392b;display:inline-block"></span>Kritis</span><strong>143 (3%)</strong></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ch"><div><div class="ct">Analisis Terbaru</div><div class="cs">5 analisis terakhir</div></div><button class="btn bo" style="font-size:12px;padding:7px 14px" onclick="gp('riwayat',document.querySelectorAll('.ni')[4])">Lihat Semua</button></div>
+      <table class="dt"><thead><tr><th>Tanggal</th><th>Lahan</th><th>Pohon</th><th>Akurasi</th><th>Estimasi (ton)</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>09 Mei 2026</td><td>Blok A-3</td><td>1.247</td><td>96.2%</td><td>74.8</td><td><span class="sp ss">✓ Sehat</span></td></tr>
+        <tr><td>07 Mei 2026</td><td>Blok B-1</td><td>982</td><td>94.7%</td><td>58.9</td><td><span class="sp sw">⚠ Perhatian</span></td></tr>
+        <tr><td>05 Mei 2026</td><td>Blok C-2</td><td>1.563</td><td>97.1%</td><td>93.8</td><td><span class="sp ss">✓ Sehat</span></td></tr>
+        <tr><td>02 Mei 2026</td><td>Blok D-4</td><td>608</td><td>91.3%</td><td>36.5</td><td><span class="sp sk">✗ Kritis</span></td></tr>
+        <tr><td>28 Apr 2026</td><td>Blok A-1</td><td>421</td><td>95.8%</td><td>25.3</td><td><span class="sp ss">✓ Sehat</span></td></tr>
+      </tbody></table>
+    </div>
+  </div>
+
+  <!-- ===== ANALISIS CITRA ===== -->
+  <div class="page" id="page-analisis">
+    <div class="card" style="margin-bottom:24px">
+      <div class="ch"><div><div class="ct">Upload Citra Satelit / Drone</div><div class="cs">AI mendeteksi & menghitung pohon sawit secara otomatis</div></div></div>
+      <div class="uz" id="uz">
+        <input type="file" accept="image/*" id="fileInput" onchange="handleFile(event)">
+        <div class="ui"><i class="fas fa-satellite-dish"></i></div>
+        <div style="font-size:18px;font-weight:600;margin-bottom:8px">Seret & Lepas Citra di Sini</div>
+        <div style="font-size:13px;color:var(--mu)">Klik untuk pilih file · Mendukung JPG, PNG, GeoTIFF</div>
+        <div style="margin-top:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+          <span style="background:var(--cd);color:var(--tm);padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600">JPG/PNG</span>
+          <span style="background:var(--cd);color:var(--tm);padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600">GeoTIFF</span>
+          <span style="background:var(--cd);color:var(--tm);padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600">Drone</span>
+          <span style="background:var(--cd);color:var(--tm);padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600">Sentinel-2</span>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:20px">
+        <div style="font-size:12px;color:var(--mu);margin-bottom:10px">— atau coba dengan data demo —</div>
+        <button class="btn bp" onclick="runDemo()"><i class="fas fa-play"></i> Jalankan Demo Analisis</button>
+      </div>
+    </div>
+
+    <!-- RESULT -->
+    <div class="ar" id="ar">
+      <!-- IMAGE + DETECTION -->
+      <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:20px;margin-bottom:20px">
+        <div class="card">
+          <div class="ch">
+            <div><div class="ct">Hasil Deteksi Pohon Sawit</div><div class="cs">AI Computer Vision · YOLOv8 Instance Segmentation</div></div>
+            <span id="accBadge" style="background:var(--gp);color:var(--gd);padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700">96.2% Akurasi</span>
+          </div>
+          <!-- Image preview with detection overlay -->
+          <div class="imgwrap" id="imgwrap" style="min-height:300px;background:#1a3a2a;display:flex;align-items:center;justify-content:center">
+            <canvas id="detCanvas"></canvas>
+          </div>
+          <!-- Stats -->
+          <div style="margin-top:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:center">
+            <div style="padding:12px;background:var(--cream);border-radius:8px">
+              <div style="font-size:26px;font-family:'Instrument Serif',serif;color:var(--gm)" id="rCount">1.247</div>
+              <div style="font-size:11px;color:var(--mu);margin-top:4px;text-transform:uppercase;letter-spacing:.5px">Pohon Terdeteksi</div>
+            </div>
+            <div style="padding:12px;background:var(--cream);border-radius:8px">
+              <div style="font-size:26px;font-family:'Instrument Serif',serif;color:var(--gold)" id="rArea">48</div>
+              <div style="font-size:11px;color:var(--mu);margin-top:4px;text-transform:uppercase;letter-spacing:.5px">Area (ha)</div>
+            </div>
+            <div style="padding:12px;background:var(--cream);border-radius:8px">
+              <div style="font-size:26px;font-family:'Instrument Serif',serif;color:var(--ga)" id="rDens">26</div>
+              <div style="font-size:11px;color:var(--mu);margin-top:4px;text-transform:uppercase;letter-spacing:.5px">Pohon/ha</div>
+            </div>
+          </div>
+          <!-- Tree list sample -->
+          <div style="margin-top:16px">
+            <div style="font-size:13px;font-weight:600;color:var(--tm);margin-bottom:8px">Sample Deteksi (10 dari <span id="rCount2">1247</span> pohon)</div>
+            <div class="tlist" id="treeList"></div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <!-- Estimasi -->
+          <div class="card">
+            <div class="stitle" style="font-size:16px">Estimasi Produksi</div>
+            <div class="er"><span class="lbl">Pohon Produktif</span><span class="val" id="rProd">1.104</span></div>
+            <div class="er"><span class="lbl">Rata-rata TBS/pohon</span><span class="val">67.8 kg</span></div>
+            <div class="er"><span class="lbl">Interval Panen</span><span class="val">14 hari</span></div>
+            <div class="er"><span class="lbl">Estimasi / Rotasi</span><span class="val hi" id="rTon">74.8 ton TBS</span></div>
+            <div class="er"><span class="lbl">Proyeksi Tahunan</span><span class="val hi" id="rTahunan">1.794 ton</span></div>
+          </div>
+          <!-- Health -->
+          <div class="card">
+            <div class="stitle" style="font-size:16px">Kesehatan Pohon</div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="color:var(--mu)">Sehat</span><span style="font-weight:600;color:#27ae60" id="hSehat">1.083 pohon</span></div><div class="pb"><div class="pf" id="pbSehat" style="width:87%;background:#27ae60"></div></div></div>
+              <div><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="color:var(--mu)">Perlu Perhatian</span><span style="font-weight:600;color:var(--gold)" id="hWarn">139 pohon</span></div><div class="pb"><div class="pf" id="pbWarn" style="width:11%;background:var(--gold)"></div></div></div>
+              <div><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="color:var(--mu)">Kritis</span><span style="font-weight:600;color:var(--danger)" id="hCrit">25 pohon</span></div><div class="pb"><div class="pf" id="pbCrit" style="width:2%;background:var(--danger)"></div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Insight -->
+      <div class="ai">
+        <div class="aih"><i class="fas fa-robot"></i> Analisis AI · Rekomendasi Tindakan</div>
+        <div class="ait" id="aiText">Menjalankan analisis...</div>
+      </div>
+
+      <!-- Actions -->
+      <div style="margin-top:20px;display:flex;gap:12px;flex-wrap:wrap">
+        <button class="btn bp" onclick="simpanAnalisis()"><i class="fas fa-save"></i> Simpan Analisis</button>
+        <button class="btn bo" onclick="exportAnalisisPDF()"><i class="fas fa-file-pdf"></i> Export PDF</button>
+        <button class="btn bo" onclick="notif('Data diekspor ke format shapefile (.shp)')"><i class="fas fa-map"></i> Export Shapefile</button>
+        <button class="btn bo" onclick="resetAnalisis()"><i class="fas fa-redo"></i> Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ESTIMASI ===== -->
+  <div class="page" id="page-estimasi">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px">
+      <div class="card">
+        <div class="stitle">Parameter Estimasi Panen</div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div><label style="display:block;color:var(--mu);font-size:11px;margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Jumlah Pohon Terdeteksi</label><input type="number" id="ep" value="1247" style="width:100%" oninput="calc()"></div>
+          <div><label style="display:block;color:var(--mu);font-size:11px;margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Rata-rata TBS per Pohon (kg)</label><input type="number" id="et" value="67.8" step="0.1" style="width:100%" oninput="calc()"></div>
+          <div><label style="display:block;color:var(--mu);font-size:11px;margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Interval Panen (hari)</label><input type="number" id="ei" value="14" style="width:100%" oninput="calc()"></div>
+          <div><label style="display:block;color:var(--mu);font-size:11px;margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">% Pohon Berbuah</label><input type="number" id="epct" value="88" min="0" max="100" style="width:100%" oninput="calc()"></div>
+          <div><label style="display:block;color:var(--mu);font-size:11px;margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Harga TBS (Rp/kg)</label><input type="number" id="eh" value="2850" step="50" style="width:100%" oninput="calc()"></div>
+          <div><label style="display:block;color:var(--mu);font-size:11px;margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Umur Tanaman (tahun)</label><input type="number" id="eu" value="8" min="1" max="30" style="width:100%" oninput="calc()"></div>
+        </div>
+        <button class="btn bp" style="width:100%;margin-top:16px;justify-content:center" onclick="calc()"><i class="fas fa-calculator"></i> Hitung Estimasi</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="card">
+          <div class="stitle">Hasil Estimasi</div>
+          <div class="er"><span class="lbl">Pohon Produktif</span><span class="val" id="eProd">—</span></div>
+          <div class="er"><span class="lbl">Produksi / Rotasi</span><span class="val hi" id="eRot">—</span></div>
+          <div class="er"><span class="lbl">Rotasi / Tahun</span><span class="val" id="eRotN">—</span></div>
+          <div class="er"><span class="lbl">Produksi / Tahun</span><span class="val hi" id="eThn">—</span></div>
+          <div class="er"><span class="lbl">Pendapatan / Rotasi</span><span class="val" id="ePdR">—</span></div>
+          <div class="er"><span class="lbl">Pendapatan / Tahun</span><span class="val hi" id="ePdT">—</span></div>
+        </div>
+        <div class="ai">
+          <div class="aih"><i class="fas fa-lightbulb"></i> Rekomendasi Optimasi</div>
+          <div class="ait" style="font-size:13px" id="eRek">Masukkan parameter di kiri lalu klik Hitung Estimasi.</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ch"><div><div class="ct">Proyeksi Produksi 12 Bulan</div><div class="cs">Berdasarkan parameter saat ini</div></div></div>
+      <div style="position:relative;height:280px"><canvas id="estChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ===== PETA LAHAN ===== -->
+  <div class="page" id="page-peta">
+    <div style="display:grid;grid-template-columns:1fr 280px;gap:20px;margin-bottom:20px">
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--br);display:flex;align-items:center;justify-content:space-between">
+          <div><div class="ct">Peta Distribusi Pohon Sawit</div><div class="cs">Klik blok untuk detail · Hover untuk info pohon</div></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn bo" style="font-size:12px;padding:6px 12px" onclick="toggleLayer('ndvi')" id="btnNdvi"><i class="fas fa-layer-group"></i> NDVI</button>
+            <button class="btn bo" style="font-size:12px;padding:6px 12px" onclick="toggleLayer('trees')" id="btnTrees"><i class="fas fa-map-pin"></i> Pohon</button>
+            <button class="btn bo" style="font-size:12px;padding:6px 12px" onclick="resetMap()"><i class="fas fa-expand"></i> Reset</button>
+          </div>
+        </div>
+        <div class="mapwrap">
+          <canvas id="mapCanvas"></canvas>
+          <div id="mapPopup" class="map-popup" style="display:none"></div>
+        </div>
+      </div>
+      <!-- LEGEND + BLOCK INFO -->
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="card">
+          <div class="stitle" style="font-size:15px">Legenda</div>
+          <div style="display:flex;flex-direction:column;gap:10px;font-size:13px">
+            <div style="display:flex;align-items:center;gap:10px"><div style="width:16px;height:16px;border-radius:3px;background:#2d8a5e"></div> Blok Sehat</div>
+            <div style="display:flex;align-items:center;gap:10px"><div style="width:16px;height:16px;border-radius:3px;background:#e8a835"></div> Perlu Perhatian</div>
+            <div style="display:flex;align-items:center;gap:10px"><div style="width:16px;height:16px;border-radius:3px;background:#c0392b"></div> Kritis</div>
+            <div style="display:flex;align-items:center;gap:10px"><div style="width:10px;height:10px;border-radius:50%;background:#fff;border:2px solid #2d8a5e"></div> Titik Pohon</div>
+          </div>
+        </div>
+        <div class="card" id="blockInfo">
+          <div class="stitle" style="font-size:15px">Info Blok</div>
+          <div style="font-size:13px;color:var(--mu)">Klik salah satu blok lahan pada peta untuk melihat detail pohon dan status kesehatan.</div>
+        </div>
+        <div class="card">
+          <div class="stitle" style="font-size:15px">Ringkasan Lahan</div>
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">Total Blok</span><strong>4 blok</strong></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">Total Pohon</span><strong>4.821</strong></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">Total Area</span><strong>192 ha</strong></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--mu)">Densitas Rata-rata</span><strong>25 pohon/ha</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== RIWAYAT ===== -->
+  <div class="page" id="page-riwayat">
+    <div class="card">
+      <div class="ch"><div><div class="ct">Riwayat Seluruh Analisis</div><div class="cs" id="riwTotal">Total 7 analisis tercatat</div></div><input type="text" placeholder="🔍 Cari..." style="width:200px;font-size:13px" oninput="filterRiwayat(this.value)"></div>
+      <table class="dt"><thead><tr><th>ID</th><th>Tanggal</th><th>Blok</th><th>Sumber</th><th>Pohon</th><th>Akurasi</th><th>TBS (ton)</th><th>Status</th><th>Aksi</th></tr></thead>
+      <tbody id="riwBody"></tbody></table>
+    </div>
+  </div>
+
+  <!-- ===== PENGATURAN ===== -->
+  <div class="page" id="page-pengaturan">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+      <div>
+        <div class="card" style="margin-bottom:20px">
+          <div class="stitle">Model AI & Deteksi</div>
+          <div class="sr"><div><div style="font-weight:500">Model Deteksi</div><div class="inf">Arsitektur neural network</div></div><select style="width:140px"><option>YOLOv8-Seg</option><option>Mask R-CNN</option><option>DeepLab v3+</option></select></div>
+          <div class="sr"><div><div style="font-weight:500">Threshold Confidence</div><div class="inf">Minimum score deteksi (0–1)</div></div><input type="number" value="0.75" step="0.05" min="0" max="1" style="width:80px;text-align:center"></div>
+          <div class="sr"><div><div style="font-weight:500">Non-Maximum Suppression</div><div class="inf">Cegah deteksi ganda</div></div><div class="toggle" onclick="this.classList.toggle('off')"></div></div>
+          <div class="sr"><div><div style="font-weight:500">Segmentasi Kanopi</div><div class="inf">Pisahkan kanopi tumpang tindih</div></div><div class="toggle" onclick="this.classList.toggle('off')"></div></div>
+        </div>
+        <div class="card">
+          <div class="stitle">Integrasi Data</div>
+          <div class="sr"><div><div style="font-weight:500">Sentinel-2 API</div><div class="inf">Akses citra ESA otomatis</div></div><div class="toggle" onclick="this.classList.toggle('off')"></div></div>
+          <div class="sr"><div><div style="font-weight:500">Data Curah Hujan BMKG</div><div class="inf">Faktor cuaca untuk estimasi</div></div><div class="toggle off" onclick="this.classList.toggle('off')"></div></div>
+          <div class="sr"><div><div style="font-weight:500">Sensor IoT Tanah</div><div class="inf">Kelembapan & nutrisi real-time</div></div><div class="toggle off" onclick="this.classList.toggle('off')"></div></div>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:20px">
+          <div class="stitle">Parameter Perkebunan</div>
+          <div class="sr"><div><div style="font-weight:500">Umur Tanaman (tahun)</div></div><input type="number" value="8" style="width:80px;text-align:center"></div>
+          <div class="sr"><div><div style="font-weight:500">Varietas Sawit</div></div><select style="width:140px"><option>Tenera (D×P)</option><option>Dura</option><option>Pisifera</option></select></div>
+          <div class="sr"><div><div style="font-weight:500">Resolusi Minimum</div></div><select style="width:140px"><option>0.1m (Drone)</option><option>0.5m (VHSR)</option><option>1m (Pleiade)</option></select></div>
+        </div>
+        <div class="card" style="margin-bottom:20px">
+          <div class="stitle">Notifikasi</div>
+          <div class="sr"><div><div style="font-weight:500">Laporan Otomatis</div><div class="inf">Kirim laporan via email</div></div><div class="toggle" onclick="this.classList.toggle('off')"></div></div>
+          <div class="sr"><div><div style="font-weight:500">Alert Pohon Kritis</div></div><div class="toggle" onclick="this.classList.toggle('off')"></div></div>
+          <div class="sr"><div><div style="font-weight:500">Email</div></div><input type="text" value="kelompokH@geodesi.ac.id" style="width:180px;font-size:12px"></div>
+        </div>
+        <button class="btn bp" style="width:100%;justify-content:center" onclick="notif('✓ Pengaturan berhasil disimpan!')"><i class="fas fa-save"></i> Simpan Pengaturan</button>
+      </div>
+    </div>
+  </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<script>
+// ======= NAV =======
+const pageTitles={dashboard:'Dashboard Overview',analisis:'Analisis Citra Satelit',estimasi:'Kalkulator Estimasi Panen',peta:'Peta Distribusi Lahan',riwayat:'Riwayat Analisis',pengaturan:'Pengaturan Sistem'};
+function gp(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(el)el.classList.add('active');
+  document.getElementById('ptitle').textContent=pageTitles[id]||id;
+  if(id==='peta')setTimeout(initMap,100);
+  if(id==='estimasi')calc();
+}
+
+// ======= NOTIF =======
+function notif(msg){
+  const n=document.getElementById('notif');
+  document.getElementById('ntxt').textContent=msg;
+  n.classList.add('show');
+  setTimeout(()=>n.classList.remove('show'),3500);
+}
+
+// ======= CHARTS =======
+const months=['Jun','Jul','Ags','Sep','Okt','Nov','Des','Jan','Feb','Mar','Apr','Mei'];
+new Chart(document.getElementById('prodChart'),{type:'line',data:{labels:months,datasets:[
+  {label:'Realisasi',data:[68,72,75,71,80,83,78,85,82,88,90,95],borderColor:'#2d8a5e',backgroundColor:'rgba(45,138,94,0.08)',borderWidth:2.5,pointRadius:4,pointBackgroundColor:'#2d8a5e',fill:true,tension:0.35},
+  {label:'Estimasi AI',data:[70,74,73,74,82,81,80,84,85,86,93,98],borderColor:'#e8a835',borderWidth:2,borderDash:[6,4],pointRadius:3,pointBackgroundColor:'#e8a835',fill:false,tension:0.35}
+]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:11},callback:v=>v+' t'},min:55,max:110}}}});
+
+new Chart(document.getElementById('healthChart'),{type:'doughnut',data:{labels:['Sehat','Perhatian','Kritis'],datasets:[{data:[87,10,3],backgroundColor:['#2d8a5e','#e8a835','#c0392b'],borderWidth:0,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:false}}}});
+
+let estChartObj=new Chart(document.getElementById('estChart'),{type:'bar',data:{labels:months,datasets:[{label:'Proyeksi (ton TBS)',data:[74,76,75,78,80,79,82,84,83,86,88,91],backgroundColor:months.map((_,i)=>i<6?'rgba(45,138,94,0.75)':'rgba(232,168,53,0.75)'),borderRadius:4,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:11},callback:v=>v+' t'}}}}});
+
+// ======= RIWAYAT =======
+const riwData=[
+  {id:'ANA-024',tgl:'09 Mei 2026 · 08:32',blok:'Blok A-3',src:'Drone DJI',pohon:1247,acc:'96.2%',tbs:74.8,status:'sehat'},
+  {id:'ANA-023',tgl:'07 Mei 2026 · 14:15',blok:'Blok B-1',src:'Sentinel-2',pohon:982,acc:'94.7%',tbs:58.9,status:'perhatian'},
+  {id:'ANA-022',tgl:'05 Mei 2026 · 09:00',blok:'Blok C-2',src:'Drone DJI',pohon:1563,acc:'97.1%',tbs:93.8,status:'sehat'},
+  {id:'ANA-021',tgl:'02 Mei 2026 · 11:45',blok:'Blok D-4',src:'Landsat-8',pohon:608,acc:'91.3%',tbs:36.5,status:'kritis'},
+  {id:'ANA-020',tgl:'28 Apr 2026 · 07:20',blok:'Blok A-1',src:'Drone DJI',pohon:421,acc:'95.8%',tbs:25.3,status:'sehat'},
+  {id:'ANA-019',tgl:'25 Apr 2026 · 13:10',blok:'Blok B-2',src:'Sentinel-2',pohon:887,acc:'93.4%',tbs:53.2,status:'perhatian'},
+  {id:'ANA-018',tgl:'22 Apr 2026 · 10:05',blok:'Blok C-1',src:'Drone DJI',pohon:1102,acc:'96.8%',tbs:66.1,status:'sehat'},
+];
+function renderRiwayat(data){
+  const sc={sehat:'ss',perhatian:'sw',kritis:'sk'};
+  const sl={sehat:'✓ Sehat',perhatian:'⚠ Perhatian',kritis:'✗ Kritis'};
+  document.getElementById('riwBody').innerHTML=data.map(r=>`
+    <tr>
+      <td style="font-weight:600;color:var(--ga);font-size:12px">${r.id}</td>
+      <td style="font-size:12px">${r.tgl}</td><td>${r.blok}</td>
+      <td><span style="background:var(--cd);padding:3px 8px;border-radius:4px;font-size:11px">${r.src}</span></td>
+      <td style="font-weight:600">${r.pohon.toLocaleString('id-ID')}</td>
+      <td>${r.acc}</td><td style="font-weight:600;color:var(--gm)">${r.tbs}</td>
+      <td><span class="sp ${sc[r.status]}">${sl[r.status]}</span></td>
+      <td><button class="btn bo" style="font-size:11px;padding:5px 10px" onclick="notif('Membuka detail ${r.id}...')"><i class="fas fa-eye"></i></button></td>
+    </tr>`).join('');
+  document.getElementById('riwTotal').textContent=`Total ${data.length} analisis tercatat`;
+}
+function filterRiwayat(q){renderRiwayat(riwData.filter(r=>Object.values(r).join(' ').toLowerCase().includes(q.toLowerCase())));}
+renderRiwayat(riwData);
+
+// ======= ANALISIS CITRA =======
+let currentImg=null;
+let analysisData=null;
+
+const uz=document.getElementById('uz');
+uz.addEventListener('dragover',e=>{e.preventDefault();uz.classList.add('drag')});
+uz.addEventListener('dragleave',()=>uz.classList.remove('drag'));
+uz.addEventListener('drop',e=>{e.preventDefault();uz.classList.remove('drag');const f=e.dataTransfer.files[0];if(f)processFile(f)});
+
+function handleFile(e){const f=e.target.files[0];if(f)processFile(f);}
+
+function processFile(file){
+  if(!file.type.startsWith('image/')){notif('⚠ File harus berupa gambar (JPG/PNG)');return;}
+  const reader=new FileReader();
+  reader.onload=e=>{
+    currentImg=e.target.result;
+    runAnalysis(currentImg);
+  };
+  reader.readAsDataURL(file);
+}
+
+function runDemo(){
+  // Generate synthetic palm plantation image
+  runAnalysis(null);
+}
+
+function runAnalysis(imgSrc){
+  const lo=document.getElementById('lo');
+  lo.classList.add('show');
+  const steps=['Memuat citra resolusi tinggi...','Preprocessing: koreksi atmosferik...','Menjalankan YOLOv8 segmentasi kanopi...','Mengklasifikasikan status kesehatan pohon...','Menghitung estimasi produksi panen...','Menyusun laporan analisis...'];
+  let i=0;
+  const iv=setInterval(()=>{
+    document.getElementById('lstep').textContent=steps[i]||steps[steps.length-1];
+    i++;
+    if(i>=steps.length){
+      clearInterval(iv);
+      setTimeout(()=>{
+        lo.classList.remove('show');
+        showResult(imgSrc);
+      },600);
+    }
+  },700);
+}
+
+function showResult(imgSrc){
+  // Randomize slightly for realism
+  const base=Math.floor(Math.random()*400+900);
+  const acc=(94+Math.random()*4).toFixed(1);
+  const area=Math.floor(base/26);
+  const prod=Math.floor(base*0.88);
+  const ton=((prod*67.8)/1000).toFixed(1);
+  const thn=(parseFloat(ton)*26).toFixed(0);
+  const sehat=Math.floor(prod*0.87);
+  const warn=Math.floor(prod*0.11);
+  const crit=prod-sehat-warn;
+
+  analysisData={count:base,acc,area,prod,ton,thn,sehat,warn,crit};
+
+  // Update UI
+  document.getElementById('rCount').textContent=base.toLocaleString('id-ID');
+  document.getElementById('rCount2').textContent=base.toLocaleString('id-ID');
+  document.getElementById('rArea').textContent=area;
+  document.getElementById('rDens').textContent=Math.round(base/area);
+  document.getElementById('accBadge').textContent=acc+'% Akurasi';
+  document.getElementById('rProd').textContent=prod.toLocaleString('id-ID')+' pohon';
+  document.getElementById('rTon').textContent=ton+' ton TBS';
+  document.getElementById('rTahunan').textContent=parseFloat(thn).toLocaleString('id-ID')+' ton';
+  document.getElementById('hSehat').textContent=sehat.toLocaleString('id-ID')+' pohon';
+  document.getElementById('hWarn').textContent=warn.toLocaleString('id-ID')+' pohon';
+  document.getElementById('hCrit').textContent=crit+' pohon';
+  document.getElementById('pbSehat').style.width='87%';
+  document.getElementById('pbWarn').style.width='11%';
+  document.getElementById('pbCrit').style.width='2%';
+
+  // AI insight
+  document.getElementById('aiText').innerHTML=`Deteksi menemukan <strong style="color:var(--gold)">${base.toLocaleString('id-ID')} pohon sawit</strong> pada area ${area} ha (densitas ${Math.round(base/area)} pohon/ha). Terdapat <strong style="color:var(--gold)">${crit} pohon kritis</strong> yang menunjukkan gejala daun menguning — diduga defisiensi magnesium atau serangan ganoderma awal. <strong>Rekomendasi:</strong> (1) Aplikasi pupuk MgSO₄ 300 gr/pohon pada zona kritis, (2) inspeksi lapangan manual untuk ${crit} pohon tersebut, (3) jadwalkan panen dalam <strong style="color:var(--gold)">12–14 hari</strong> untuk optimasi Kandungan Minyak Kasar (KMK). Estimasi pendapatan rotasi ini: <strong style="color:var(--gold)">Rp ${(parseFloat(ton)*1000*2850/1e6).toFixed(0)} juta</strong>.`;
+
+  // Draw detection canvas
+  drawDetection(imgSrc, base, sehat, warn, crit);
+
+  // Tree list
+  buildTreeList(base, sehat, warn, crit);
+
+  document.getElementById('ar').classList.add('show');
+  document.getElementById('ar').scrollIntoView({behavior:'smooth',block:'start'});
+  notif(`✓ Analisis selesai — ${base.toLocaleString('id-ID')} pohon terdeteksi!`);
+}
+
+function drawDetection(imgSrc, count, sehat, warn, crit){
+  const canvas=document.getElementById('detCanvas');
+  const wrap=document.getElementById('imgwrap');
+  const W=wrap.offsetWidth||620;
+  const H=340;
+  canvas.width=W; canvas.height=H;
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  const ctx=canvas.getContext('2d');
+
+  const draw=(bg)=>{
+    if(bg){
+      ctx.drawImage(bg,0,0,W,H);
+      // darken slightly
+      ctx.fillStyle='rgba(0,0,0,0.15)';
+      ctx.fillRect(0,0,W,H);
+    } else {
+      // Synthetic plantation background
+      const grd=ctx.createLinearGradient(0,0,W,H);
+      grd.addColorStop(0,'#1a4d2e');grd.addColorStop(.5,'#2d7a42');grd.addColorStop(1,'#1f5c35');
+      ctx.fillStyle=grd;ctx.fillRect(0,0,W,H);
+      // Draw crown circles
+      const cols=['#3d9e5a','#52b86e','#2a8045','#47aa62','#5abe78','#3aa856'];
+      const r2=()=>Math.random();
+      for(let row=0;row<9;row++){
+        for(let col=0;col<14;col++){
+          const x=25+col*44+r2()*12-6;
+          const y=18+row*35+r2()*10-5;
+          const r=r2()*7+13;
+          ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);
+          ctx.fillStyle=cols[Math.floor(r2()*cols.length)];ctx.fill();
+          ctx.beginPath();ctx.arc(x-3,y-3,r*.35,0,Math.PI*2);
+          ctx.fillStyle='rgba(255,255,255,0.15)';ctx.fill();
+        }
+      }
+    }
+
+    // Draw detection boxes
+    const total=Math.min(count,80);
+    const r2b=()=>Math.random();
+    const usedPos=[];
+    for(let i=0;i<total;i++){
+      let x,y,attempts=0;
+      do{x=r2b()*(W-50)+5;y=r2b()*(H-50)+5;attempts++;}while(attempts<20&&usedPos.some(p=>Math.abs(p[0]-x)<30&&Math.abs(p[1]-y)<30));
+      usedPos.push([x,y]);
+      const sz=r2b()*14+26;
+      let color='#00ff88';
+      const rnd=r2b();
+      if(rnd<crit/count)color='#ff4444';
+      else if(rnd<(crit+warn)/count)color='#ffcc00';
+      ctx.strokeStyle=color;ctx.lineWidth=1.5;
+      ctx.strokeRect(x,y,sz,sz);
+      ctx.fillStyle=color.replace(')',',0.08)').replace('rgb','rgba').replace('#','rgba(').replace(/([0-9a-f]{2})/gi,(m)=>parseInt(m,16)+',');
+      ctx.fillStyle='rgba(0,255,0,0.05)';
+      if(color==='#ff4444')ctx.fillStyle='rgba(255,0,0,0.08)';
+      if(color==='#ffcc00')ctx.fillStyle='rgba(255,200,0,0.08)';
+      ctx.fillRect(x,y,sz,sz);
+      // Confidence label
+      ctx.fillStyle=color;ctx.font='9px monospace';
+      const conf=(88+r2b()*10).toFixed(0);
+      ctx.fillText(conf+'%',x+1,y-2);
+    }
+
+    // Bottom info bar
+    ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillRect(0,H-28,W,28);
+    ctx.fillStyle='#00ff88';ctx.font='bold 11px monospace';
+    ctx.fillText(`▶ SawitVision AI · ${count.toLocaleString('id-ID')} pohon terdeteksi · ${(88+Math.random()*10).toFixed(1)}% conf · YOLOv8-Seg`,8,H-10);
+
+    // Legend
+    ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillRect(W-160,8,155,56);
+    [['#00ff88','Sehat'],['#ffcc00','Perhatian'],['#ff4444','Kritis']].forEach(([c,l],i)=>{
+      ctx.fillStyle=c;ctx.fillRect(W-152,16+i*16,10,10);
+      ctx.fillStyle='#fff';ctx.font='10px sans-serif';ctx.fillText(l,W-138,25+i*16);
+    });
+  };
+
+  if(imgSrc){
+    const img=new Image();
+    img.onload=()=>draw(img);
+    img.src=imgSrc;
+  } else {
+    draw(null);
+  }
+}
+
+function buildTreeList(count,sehat,warn,crit){
+  const statuses=['sehat','sehat','sehat','sehat','sehat','sehat','sehat','perhatian','perhatian','kritis'];
+  const colors={sehat:'#27ae60',perhatian:'#e8a835',kritis:'#c0392b'};
+  const labels={sehat:'Sehat',perhatian:'Perhatian',kritis:'Kritis'};
+  const tbs={sehat:[60,80],perhatian:[35,55],kritis:[10,30]};
+  const html=statuses.map((s,i)=>{
+    const t=(tbs[s][0]+Math.random()*(tbs[s][1]-tbs[s][0])).toFixed(1);
+    const id=Math.floor(1000+Math.random()*9000);
+    return `<div class="titem">
+      <span style="display:flex;align-items:center">
+        <span class="tdot" style="background:${colors[s]}"></span>
+        <span>Pohon #${id}</span>
+      </span>
+      <span style="color:var(--mu);font-size:12px">${t} kg TBS</span>
+      <span class="sp ${s==='sehat'?'ss':s==='perhatian'?'sw':'sk'}" style="font-size:10px">${labels[s]}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('treeList').innerHTML=html;
+}
+
+function resetAnalisis(){
+  document.getElementById('ar').classList.remove('show');
+  document.getElementById('fileInput').value='';
+  currentImg=null; analysisData=null;
+  notif('Analisis direset. Siap upload citra baru.');
+}
+
+function simpanAnalisis(){
+  if(!analysisData){notif('⚠ Belum ada analisis untuk disimpan.');return;}
+  const d=analysisData;
+  const newRow={id:'ANA-0'+(25+riwData.length),tgl:new Date().toLocaleString('id-ID').slice(0,16),blok:'Blok Baru',src:'Upload',pohon:d.count,acc:d.acc+'%',tbs:parseFloat(d.ton),status:'sehat'};
+  riwData.unshift(newRow);
+  renderRiwayat(riwData);
+  notif('✓ Analisis berhasil disimpan ke riwayat!');
+}
+
+// ======= ESTIMASI =======
+function calc(){
+  const p=parseFloat(document.getElementById('ep').value)||0;
+  const t=parseFloat(document.getElementById('et').value)||0;
+  const iv=parseInt(document.getElementById('ei').value)||14;
+  const pct=parseFloat(document.getElementById('epct').value)/100||.88;
+  const h=parseFloat(document.getElementById('eh').value)||2850;
+  const u=parseInt(document.getElementById('eu').value)||8;
+
+  const prod=Math.floor(p*pct);
+  const rotTon=(prod*t)/1000;
+  const rotN=Math.round(365/iv);
+  const thnTon=rotTon*rotN;
+  const pdR=rotTon*1000*h;
+  const pdT=pdR*rotN;
+
+  document.getElementById('eProd').textContent=prod.toLocaleString('id-ID')+' pohon';
+  document.getElementById('eRot').textContent=rotTon.toFixed(1)+' ton TBS';
+  document.getElementById('eRotN').textContent=rotN+' rotasi/tahun';
+  document.getElementById('eThn').textContent=thnTon.toLocaleString('id-ID',{maximumFractionDigits:0})+' ton';
+  document.getElementById('ePdR').textContent='Rp '+(pdR/1e6).toFixed(0)+' juta';
+  document.getElementById('ePdT').textContent='Rp '+(pdT/1e9).toFixed(2)+' miliar';
+
+  const opt=pct<0.85?'rendah — tingkatkan pemupukan K dan Mg':pct<0.92?'cukup baik — optimalkan pemupukan untuk capai 95%':'sangat optimal';
+  document.getElementById('eRek').innerHTML=`Dengan <strong>${prod.toLocaleString('id-ID')} pohon produktif</strong> (${(pct*100).toFixed(0)}%), produktivitas lahan <strong>${opt}</strong>. Umur tanaman ${u} tahun ${u<5?'— masih dalam fase TBM, produksi belum maksimal':u>20?'— pertimbangkan peremajaan tanaman':' — dalam puncak produktivitas'}. Pendapatan tahunan estimasi: <strong>Rp ${(pdT/1e9).toFixed(2)} miliar</strong>.`;
+
+  // Update chart
+  const base=rotTon;
+  estChartObj.data.datasets[0].data=Array.from({length:12},(_,i)=>parseFloat((base*(1+i*0.012+(Math.random()*.04-.02))).toFixed(1)));
+  estChartObj.update();
+}
+
+// ======= PETA LAHAN =======
+const blocks=[
+  {id:'A',label:'Blok A',x:.05,y:.05,w:.42,h:.44,count:1247,status:'sehat',color:'#2d8a5e',detail:'Kondisi optimal. 1.083 pohon sehat, 139 perhatian, 25 kritis. Rekomendasi: Pertahankan jadwal pemupukan.'},
+  {id:'B',label:'Blok B',x:.52,y:.05,w:.43,h:.44,count:982,status:'perhatian',color:'#e8a835',detail:'Perlu perhatian. Terdeteksi genangan air di sektor barat. Rekomendasi: Perbaiki drainase segera.'},
+  {id:'C',label:'Blok C',x:.05,y:.54,w:.42,h:.42,count:1563,status:'sehat',color:'#2d8a5e',detail:'Kondisi terbaik. Densitas 28 pohon/ha, produksi tertinggi. Rekomendasi: Jadikan model blok lain.'},
+  {id:'D',label:'Blok D',x:.52,y:.54,w:.43,h:.42,count:1029,status:'kritis',color:'#c0392b',detail:'KRITIS: Terdeteksi serangan ganoderma pada 87 pohon. Rekomendasi: Karantina & tindakan segera!'},
+];
+
+let showNdvi=false, showTrees=false, mapInited=false;
+
+function initMap(){
+  const canvas=document.getElementById('mapCanvas');
+  const wrap=canvas.parentElement;
+  canvas.width=wrap.offsetWidth;
+  canvas.height=450;
+  drawMap();
+  if(!mapInited){
+    canvas.addEventListener('click',onMapClick);
+    canvas.addEventListener('mousemove',onMapHover);
+    mapInited=true;
+  }
+}
+
+function drawMap(){
+  const canvas=document.getElementById('mapCanvas');
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width, H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  // Background
+  ctx.fillStyle='#1a3a2a';ctx.fillRect(0,0,W,H);
+
+  // Grid
+  ctx.strokeStyle='rgba(90,181,134,0.15)';ctx.lineWidth=.5;
+  for(let i=0;i<W;i+=40){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,H);ctx.stroke();}
+  for(let j=0;j<H;j+=40){ctx.beginPath();ctx.moveTo(0,j);ctx.lineTo(W,j);ctx.stroke();}
+
+  blocks.forEach(b=>{
+    const px=b.x*W, py=b.y*H, pw=b.w*W, ph=b.h*H;
+
+    if(showNdvi){
+      // NDVI color overlay
+      const ndviColors={sehat:'rgba(0,200,80,0.35)',perhatian:'rgba(255,200,0,0.35)',kritis:'rgba(255,50,50,0.35)'};
+      ctx.fillStyle=ndviColors[b.status];
+    } else {
+      ctx.fillStyle=b.color+'22';
+    }
+    ctx.fillRect(px,py,pw,ph);
+    ctx.strokeStyle=b.color;ctx.lineWidth=2;
+    ctx.strokeRect(px,py,pw,ph);
+
+    // Tree dots
+    if(showTrees){
+      const dotCount=Math.min(Math.floor(b.count/8),150);
+      for(let d=0;d<dotCount;d++){
+        const dx=px+10+Math.random()*(pw-20);
+        const dy=py+10+Math.random()*(ph-20);
+        ctx.beginPath();ctx.arc(dx,dy,2.5,0,Math.PI*2);
+        ctx.fillStyle='rgba(255,255,255,0.7)';ctx.fill();
+      }
+    } else {
+      // Pattern dots (fixed seed visual)
+      const seed=b.id.charCodeAt(0);
+      for(let r=0;r<6;r++){for(let c=0;c<8;c++){
+        const dx=px+15+c*(pw/8)+(seed%5);
+        const dy=py+15+r*(ph/6)+((seed*r)%7);
+        if(dx>px&&dx<px+pw&&dy>py&&dy<py+ph){
+          ctx.beginPath();ctx.arc(dx,dy,2,0,Math.PI*2);
+          ctx.fillStyle='rgba(255,255,255,0.5)';ctx.fill();
+        }
+      }}
+    }
+
+    // Label
+    ctx.fillStyle='rgba(0,0,0,0.5)';ctx.fillRect(px+6,py+6,pw-12,36);
+    ctx.fillStyle=b.color;ctx.font='bold 14px Space Grotesk,sans-serif';
+    ctx.fillText(b.label,px+12,py+22);
+    ctx.fillStyle='rgba(255,255,255,0.8)';ctx.font='11px Space Grotesk,sans-serif';
+    ctx.fillText(b.count.toLocaleString('id-ID')+' pohon · '+b.status.toUpperCase(),px+12,py+36);
+  });
+
+  // Compass
+  ctx.fillStyle='rgba(255,255,255,0.8)';ctx.font='bold 12px sans-serif';
+  ctx.fillText('N↑',W-28,24);
+  ctx.fillStyle='rgba(255,255,255,0.4)';ctx.font='10px sans-serif';
+  ctx.fillText('SawitVision Map v2.1',8,H-8);
+}
+
+function getBlock(mx,my){
+  const canvas=document.getElementById('mapCanvas');
+  const W=canvas.width, H=canvas.height;
+  const rect=canvas.getBoundingClientRect();
+  const scaleX=W/rect.width, scaleY=H/rect.height;
+  const cx=(mx-rect.left)*scaleX, cy=(my-rect.top)*scaleY;
+  return blocks.find(b=>cx>=b.x*W&&cx<=(b.x+b.w)*W&&cy>=b.y*H&&cy<=(b.y+b.h)*H);
+}
+
+function onMapClick(e){
+  const b=getBlock(e.clientX,e.clientY);
+  if(!b){document.getElementById('mapPopup').style.display='none';return;}
+  const canvas=document.getElementById('mapCanvas');
+  const W=canvas.width;
+  const popup=document.getElementById('mapPopup');
+  popup.style.display='block';
+  const left=(b.x+b.w/2)*100;
+  popup.style.left=Math.min(left,55)+'%';
+  popup.style.top=(b.y*100+2)+'%';
+  const sc={sehat:'#27ae60',perhatian:'#e8a835',kritis:'#c0392b'};
+  popup.innerHTML=`
+    <span class="close-btn" onclick="this.parentElement.style.display='none'">✕</span>
+    <h4 style="color:${sc[b.status]}">${b.label} · ${b.status.toUpperCase()}</h4>
+    <div style="font-size:12px;color:var(--tm);line-height:1.6;margin-bottom:10px">${b.detail}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px">
+      <div style="background:var(--cream);padding:6px 8px;border-radius:6px"><div style="color:var(--mu)">Pohon</div><strong>${b.count.toLocaleString('id-ID')}</strong></div>
+      <div style="background:var(--cream);padding:6px 8px;border-radius:6px"><div style="color:var(--mu)">Estimasi TBS</div><strong>${(b.count*0.88*67.8/1000).toFixed(1)} ton</strong></div>
+    </div>
+    <button class="btn bp" style="width:100%;margin-top:10px;justify-content:center;font-size:12px" onclick="gp('analisis',document.querySelectorAll('.ni')[1]);notif('Memuat analisis ${b.label}...')"><i class='fas fa-satellite-dish'></i> Analisis Blok Ini</button>
+  `;
+  // Update block info panel
+  document.getElementById('blockInfo').innerHTML=`
+    <div class="stitle" style="font-size:15px;color:${sc[b.status]}">${b.label} — ${b.status.charAt(0).toUpperCase()+b.status.slice(1)}</div>
+    <div style="font-size:13px;line-height:1.7;color:var(--tm)">${b.detail}</div>
+    <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
+      <div style="background:var(--cream);padding:8px;border-radius:6px"><div style="color:var(--mu);font-size:11px">TOTAL POHON</div><strong>${b.count.toLocaleString('id-ID')}</strong></div>
+      <div style="background:var(--cream);padding:8px;border-radius:6px"><div style="color:var(--mu);font-size:11px">EST. TBS/ROTASI</div><strong>${(b.count*0.88*67.8/1000).toFixed(1)} ton</strong></div>
+    </div>
+  `;
+}
+
+function onMapHover(e){
+  const b=getBlock(e.clientX,e.clientY);
+  document.getElementById('mapCanvas').style.cursor=b?'pointer':'default';
+}
+
+function toggleLayer(type){
+  if(type==='ndvi'){showNdvi=!showNdvi;document.getElementById('btnNdvi').style.background=showNdvi?'var(--gp)':'';}
+  if(type==='trees'){showTrees=!showTrees;document.getElementById('btnTrees').style.background=showTrees?'var(--gp)':'';}
+  drawMap();
+}
+
+function resetMap(){
+  showNdvi=false;showTrees=false;
+  document.getElementById('btnNdvi').style.background='';
+  document.getElementById('btnTrees').style.background='';
+  document.getElementById('mapPopup').style.display='none';
+  document.getElementById('blockInfo').innerHTML='<div class="stitle" style="font-size:15px">Info Blok</div><div style="font-size:13px;color:var(--mu)">Klik salah satu blok lahan pada peta untuk melihat detail pohon dan status kesehatan.</div>';
+  drawMap();
+  notif('Peta direset ke tampilan awal.');
+}
+
+// ======= EXPORT PDF =======
+function exportDashPDF(){
+  notif('Membuat PDF Dashboard...');
+  setTimeout(()=>{
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+    const W=doc.internal.pageSize.getWidth();
+    doc.setFillColor(15,61,46);doc.rect(0,0,W,22,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(16);doc.setFont('helvetica','bold');
+    doc.text('SawitVision — Dashboard Overview',14,14);
+    doc.setFontSize(9);doc.setFont('helvetica','normal');
+    doc.text('Laporan: '+new Date().toLocaleString('id-ID'),W-14,14,{align:'right'});
+    const metrics=[{l:'Total Pohon',v:'4.821 pohon',c:[45,138,94]},{l:'Estimasi Panen',v:'286 ton TBS',c:[232,168,53]},{l:'Kesehatan Lahan',v:'87%',c:[22,160,133]},{l:'Perlu Perhatian',v:'143 pohon',c:[192,57,43]}];
+    metrics.forEach((m,i)=>{
+      const x=14+i*68;
+      doc.setFillColor(...m.c);doc.roundedRect(x,28,62,22,3,3,'F');
+      doc.setTextColor(255,255,255);doc.setFontSize(8);doc.setFont('helvetica','normal');doc.text(m.l,x+4,35);
+      doc.setFontSize(14);doc.setFont('helvetica','bold');doc.text(m.v,x+4,46);
+    });
+    doc.setTextColor(15,61,46);doc.setFontSize(11);doc.setFont('helvetica','bold');doc.text('Riwayat Analisis Terbaru',14,62);
+    doc.setFillColor(240,235,224);doc.rect(14,65,W-28,8,'F');
+    const headers=['Tanggal','Lahan','Pohon','Akurasi','Estimasi (ton)','Status'];
+    const colW=[45,35,25,25,35,30];
+    let cx=16;doc.setTextColor(60,60,60);doc.setFontSize(8);doc.setFont('helvetica','bold');
+    headers.forEach((h,i)=>{doc.text(h,cx,71);cx+=colW[i];});
+    const rows=[['09 Mei 2026','Blok A-3','1.247','96.2%','74.8','Sehat'],['07 Mei 2026','Blok B-1','982','94.7%','58.9','Perhatian'],['05 Mei 2026','Blok C-2','1.563','97.1%','93.8','Sehat'],['02 Mei 2026','Blok D-4','608','91.3%','36.5','Kritis'],['28 Apr 2026','Blok A-1','421','95.8%','25.3','Sehat']];
+    doc.setFont('helvetica','normal');
+    rows.forEach((r,ri)=>{
+      const y=80+ri*9;
+      if(ri%2===0){doc.setFillColor(250,247,242);doc.rect(14,y-5,W-28,9,'F');}
+      cx=16;
+      r.forEach((cell,ci)=>{
+        const sc={Sehat:[39,174,96],Perhatian:[230,126,34],Kritis:[192,57,43]};
+        doc.setTextColor(...(sc[cell]||[60,60,60]));
+        doc.text(cell,cx,y);cx+=colW[ci];
+      });
+    });
+    const pH=doc.internal.pageSize.getHeight();
+    doc.setFillColor(15,61,46);doc.rect(0,pH-10,W,10,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(8);
+    doc.text('SawitVision · Kelompok H · Teknik Geodesi Kelas A',W/2,pH-3,{align:'center'});
+    doc.save('SawitVision_Dashboard_'+new Date().toISOString().slice(0,10)+'.pdf');
+    notif('✓ PDF Dashboard berhasil didownload!');
+  },300);
+}
+
+function exportAnalisisPDF(){
+  notif('Membuat laporan analisis PDF...');
+  setTimeout(()=>{
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({unit:'mm',format:'a4'});
+    const W=doc.internal.pageSize.getWidth();
+    const d=analysisData||{count:1247,acc:'96.2',area:48,prod:1104,ton:'74.8',thn:'1794',sehat:1083,warn:139,crit:25};
+    doc.setFillColor(15,61,46);doc.rect(0,0,W,30,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(18);doc.setFont('helvetica','bold');
+    doc.text('Laporan Analisis Citra Sawit',14,16);
+    doc.setFontSize(9);doc.setFont('helvetica','normal');
+    doc.text('SawitVision AI · YOLOv8 + Instance Segmentation',14,23);
+    doc.text(new Date().toLocaleString('id-ID'),W-14,23,{align:'right'});
+    doc.setTextColor(15,61,46);doc.setFontSize(12);doc.setFont('helvetica','bold');doc.text('Informasi Analisis',14,42);
+    doc.setDrawColor(15,61,46);doc.line(14,44,W-14,44);
+    const info=[['ID Analisis',`ANA-0${24+Math.floor(Math.random()*10)}`],['Tanggal',new Date().toLocaleString('id-ID')],['Sumber Citra',currentImg?'Upload Pengguna':'Demo Dataset'],['Model AI','YOLOv8-Seg v2.1'],['Threshold','0.75 confidence']];
+    doc.setFont('helvetica','normal');doc.setFontSize(10);
+    info.forEach(([k,v],i)=>{const y=52+i*8;doc.setTextColor(120,120,100);doc.text(k,14,y);doc.setTextColor(30,30,30);doc.text(v,75,y);});
+    doc.setTextColor(15,61,46);doc.setFontSize(12);doc.setFont('helvetica','bold');doc.text('Hasil Deteksi',14,100);doc.line(14,102,W-14,102);
+    const det=[{l:'Pohon Terdeteksi',v:d.count.toLocaleString('id-ID'),c:[45,138,94]},{l:'Akurasi Model',v:d.acc+'%',c:[45,138,94]},{l:'Area Lahan',v:d.area+' ha',c:[22,160,133]},{l:'Densitas',v:Math.round(d.count/d.area)+' pohon/ha',c:[22,160,133]}];
+    det.forEach((dt,i)=>{
+      const x=14+(i%2)*90, y=110+Math.floor(i/2)*20;
+      doc.setFillColor(240,235,224);doc.roundedRect(x,y-6,84,16,2,2,'F');
+      doc.setFillColor(...dt.c);doc.roundedRect(x,y-6,3,16,1,1,'F');
+      doc.setTextColor(100,100,80);doc.setFontSize(8);doc.setFont('helvetica','normal');doc.text(dt.l,x+7,y);
+      doc.setTextColor(15,61,46);doc.setFontSize(14);doc.setFont('helvetica','bold');doc.text(dt.v,x+7,y+8);
+    });
+    doc.setTextColor(15,61,46);doc.setFontSize(12);doc.setFont('helvetica','bold');doc.text('Estimasi Produksi',14,156);doc.line(14,158,W-14,158);
+    const est=[['Pohon Produktif',d.prod.toLocaleString('id-ID')+' pohon'],['Rata-rata TBS/pohon','67.8 kg'],['Estimasi / Rotasi',d.ton+' ton TBS'],['Proyeksi Tahunan',parseFloat(d.thn).toLocaleString('id-ID')+' ton'],['Pendapatan / Rotasi','Rp '+(parseFloat(d.ton)*1000*2850/1e6).toFixed(0)+' juta'],['Pendapatan Tahunan','Rp '+(parseFloat(d.thn)*1000*2850/1e9).toFixed(2)+' miliar']];
+    doc.setFont('helvetica','normal');doc.setFontSize(10);
+    est.forEach(([k,v],i)=>{const y=167+i*9;if(i%2===0){doc.setFillColor(250,247,242);doc.rect(14,y-5,W-28,9,'F');}doc.setTextColor(100,100,80);doc.text(k,16,y);doc.setTextColor(15,61,46);doc.setFont('helvetica','bold');doc.text(v,W-16,y,{align:'right'});doc.setFont('helvetica','normal');});
+    doc.setTextColor(15,61,46);doc.setFontSize(12);doc.setFont('helvetica','bold');doc.text('Status Kesehatan',14,232);doc.line(14,234,W-14,234);
+    const health=[{l:'Sehat',v:d.sehat.toLocaleString('id-ID'),pct:87,c:[39,174,96]},{l:'Perlu Perhatian',v:d.warn.toLocaleString('id-ID'),pct:11,c:[230,126,34]},{l:'Kritis',v:d.crit,pct:2,c:[192,57,43]}];
+    health.forEach((h,i)=>{const y=243+i*14;doc.setTextColor(50,50,50);doc.setFontSize(10);doc.setFont('helvetica','normal');doc.text(h.l,14,y);doc.text(h.v+' pohon ('+h.pct+'%)',W-14,y,{align:'right'});doc.setFillColor(220,220,210);doc.roundedRect(14,y+2,W-28,5,2,2,'F');doc.setFillColor(...h.c);doc.roundedRect(14,y+2,(W-28)*h.pct/100,5,2,2,'F');});
+    const pH2=doc.internal.pageSize.getHeight();
+    doc.setFillColor(15,61,46);doc.rect(0,pH2-12,W,12,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(8);
+    doc.text('SawitVision · Kelompok H · Teknik Geodesi Kelas A · Pemrograman Komputer',W/2,pH2-4,{align:'center'});
+    doc.save('SawitVision_Analisis_'+new Date().toISOString().slice(0,10)+'.pdf');
+    notif('✓ Laporan PDF berhasil didownload!');
+  },300);
+}
+
+// Init
+calc();
+</script>
+</body>
+</html>
